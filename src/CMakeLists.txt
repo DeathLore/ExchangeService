@@ -1,3 +1,5 @@
+# cmake -DCMAKE_BUILD_TYPE=Release -S src -B build
+
 CMAKE_MINIMUM_REQUIRED(VERSION 3.21)
 PROJECT(ClienServerEcn)
 
