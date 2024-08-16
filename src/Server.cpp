@@ -33,6 +33,18 @@ public:
     }
   }
 
+  // Message contains "-1" if not found; else clientID;
+  std::string FindUserID(const std::string& supposedUserName)
+  {
+    for (const auto& [key, value] : mUsers)
+    {
+      if (value == supposedUserName)
+        return std::to_string(key);
+    }
+    
+    return "-1";
+  }
+
 private:
   // <UserId, UserName>
   std::map<size_t, std::string> mUsers;
@@ -85,6 +97,10 @@ public:
         // Welcoming User.
         // User's name finding via UserID in received message.
         reply = "Hello, " + GetCore().GetUserName(json_message["UserId"]) + "!\n";
+      }
+       else if (reqType == Requests::FindUser)
+      {
+        reply = GetCore().FindUserID(json_message["Message"]);
       }
 
       boost::asio::async_write(socket_,
