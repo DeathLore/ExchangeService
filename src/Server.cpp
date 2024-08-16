@@ -47,8 +47,8 @@ Core& GetCore()
 class session
 {
 public:
-  session(boost::asio::io_service& io_service)
-      : socket_(io_service) { }
+  session(boost::asio::io_context& io_context)
+      : socket_(io_context) { }
 
   tcp::socket& socket()
   {
@@ -125,9 +125,9 @@ private:
 class server final
 {
 public:
-  server(boost::asio::io_service& io_service)
-      : io_service_(io_service),
-      acceptor_(io_service, tcp::endpoint(tcp::v4(), port))
+  server(boost::asio::io_context& io_context)
+      : io_context_(io_context),
+      acceptor_(io_context, tcp::endpoint(tcp::v4(), port))
   {
     std::cout << "Server started! Listen " << port << " port" << std::endl;
   }
@@ -145,7 +145,7 @@ public:
 
   void start()
   {
-    sessions_list_.emplace_back(io_service_);
+    sessions_list_.emplace_back(io_context_);
     session_it_ = sessions_list_.end();
     acceptor_.async_accept(session_it_->socket(),
         boost::bind(&server::handle_accept, this,
@@ -157,7 +157,7 @@ public:
     if (!error)
     {
       session_it_->start();
-      sessions_list_.emplace_back(io_service_);
+      sessions_list_.emplace_back(io_context_);
       session_it_ = sessions_list_.end();
       acceptor_.async_accept(session_it_->socket(),
            boost::bind(&server::handle_accept, this,
@@ -170,7 +170,7 @@ public:
   }
 
 private:
-  boost::asio::io_service& io_service_;
+  boost::asio::io_context& io_context_;
   tcp::acceptor acceptor_;
   // List is used because there are multiple sessions 
   // that are created and expired frequently.
@@ -182,13 +182,13 @@ int main()
 {
   try
   {
-    boost::asio::io_service io_service;
+    boost::asio::io_context io_context;
     Core core = GetCore();
 
-    server s(io_service);
+    server s(io_context);
     s.start();
 
-    io_service.run();
+    io_context.run();
   }
   catch (std::exception& e)
   {

@@ -9,6 +9,7 @@ namespace Requests
 {
   static std::string Registration = "Reg";
   static std::string Hello = "Hel";
+  static std::string FindUser = "FndUsr";
 }
 
 #endif //CLIENT_SERV_EXCHANGE_COMMON_HPP
