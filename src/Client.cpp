@@ -6,45 +6,6 @@
 
 using boost::asio::ip::tcp;
 
-// Sending message to the server.
-void SendMessage(
-  tcp::socket& aSocket,
-  const std::string& aClientID,
-  const std::string& aRequestType,
-  const std::string& aMessage)
-{
-  nlohmann::json req;
-  req["UserId"] = aClientID;
-  req["ReqType"] = aRequestType;
-  req["Message"] = aMessage;
-
-  std::string request = req.dump();
-  boost::asio::write(aSocket, boost::asio::buffer(request, request.size()));
-}
-
-// Returns server's response for last request.
-std::string ReadMessage(tcp::socket& aSocket)
-{
-  boost::asio::streambuf b;
-  boost::asio::read_until(aSocket, b, "\0");
-  std::istream is(&b);
-  std::string line(std::istreambuf_iterator<char>(is), {});
-  return line;
-}
-
-// Register new User.
-// Returns ClientID.
-std::string ProcessRegistration(tcp::socket& aSocket)
-{
-  std::string name;
-  std::cout << "Hello! Enter your name: ";
-  std::cin >> name;
-
-  // For registration ID is not necessary that's why filled it as "0".
-  SendMessage(aSocket, "0", Requests::Registration, name);
-  return ReadMessage(aSocket);
-}
-
 void EnteringMenu()
 {
   std::cout << "Menu:\n"
@@ -54,32 +15,26 @@ void EnteringMenu()
                << std::endl;
 }
 
-void Login(std::string& aClientID, tcp::socket& aSocket)
+class Client final
 {
-  std::string client_name, message;
+public:
 
-  while(true)
+  Client(tcp::socket& socket) : ClientSocket(socket) 
   {
-    std::cout << "Enter user name: ";
-    std::cin >> client_name;
-    SendMessage(aSocket, "0", Requests::FindUser, client_name);
-    // Message contains "-1" if not found; else clientID;
-    message = ReadMessage(aSocket);
-
-    if (std::stoi(message) == -1)
-    {
-      short menu_option_num;
+    std::cout << "Welcome!\n";
+    while(true) {
       std::cout << "-------------\n";
-      std::cout << "User \"" << client_name << "\" not found.\n";
       EnteringMenu();
       std::cin >> menu_option_num;
-      
+
       if (menu_option_num == 1)
-        continue;
-      else if (menu_option_num == 2)
       {
-        aClientID = ProcessRegistration(aSocket);
-        if (aClientID == "-1")
+        Login(client_ID_);
+        break;
+      }
+      else if (menu_option_num == 2) {
+        client_ID_ = ProcessRegistration();
+        if (client_ID_ == "-1")
         {
           std::cout << "This user is already registered!\n";
           continue;
@@ -89,11 +44,148 @@ void Login(std::string& aClientID, tcp::socket& aSocket)
       else
         exit(0);
     }
-    
-    aClientID = message;
-    break;
   }
-}
+
+
+  // Sending message to the server.
+  void SendMessage(
+    const std::string& aClientID,
+    const std::string& aRequestType,
+    const std::string& aMessage)
+  {
+    nlohmann::json req;
+    req[USER_ID] = aClientID;
+    req[REQUEST_TYPE] = aRequestType;
+    req[MESSAGE] = aMessage;
+
+    std::string request = req.dump();
+    boost::asio::write(ClientSocket, boost::asio::buffer(request, request.size()));
+  }
+
+  // Returns server's response for last request.
+  std::string ReadMessage()
+  {
+    boost::asio::streambuf b;
+    boost::asio::read_until(ClientSocket, b, "\0");
+    std::istream is(&b);
+    std::string line(std::istreambuf_iterator<char>(is), {});
+    return line;
+  }
+
+  nlohmann::json ReadJsonMessage()
+  {
+    return nlohmann::json::parse(ReadMessage());
+  }
+
+  // Register new User.
+  // Returns ClientID.
+  std::string ProcessRegistration()
+  {
+    std::string name;
+    std::cout << "Enter your name: ";
+    std::cin >> name;
+
+    // For registration ID is not necessary that's why filled it as "0".
+    SendMessage("0", Requests::Registration, name);
+    return ReadMessage();
+  }
+
+  void Login(std::string& aClientID)
+  {
+    std::string client_name, message;
+
+    while(true)
+    {
+      std::cout << "Enter user name: ";
+      std::cin >> client_name;
+      SendMessage("0", Requests::FindUser, client_name);
+      // Message contains "-1" if not found; else clientID;
+      message = ReadMessage();
+
+      if (std::stoi(message) == -1)
+      {
+        short menu_option_num;
+        std::cout << "-------------\n";
+        std::cout << "User \"" << client_name << "\" not found.\n";
+        EnteringMenu();
+        std::cin >> menu_option_num;
+        
+        if (menu_option_num == 1)
+          continue;
+        else if (menu_option_num == 2)
+        {
+          aClientID = ProcessRegistration();
+          if (aClientID == "-1")
+          {
+            std::cout << "This user is already registered!\n";
+            continue;
+          }
+          break;
+        }
+        else
+          exit(0);
+      }
+      
+      aClientID = message;
+      break;
+    }
+  }
+
+
+  void Start() {
+    std::string cin_buffer;
+    while (true)
+    {
+      std::cout << "-------------\n";
+      std::cout << "Menu:\n"
+                   "1) Hello Request\n"
+                   "2) Balance\n"
+                   "7) Exit\n"
+                   << std::endl;
+
+      
+      std::cin >> cin_buffer;
+      menu_option_num = std::stoi(cin_buffer);
+      std::cout << "-------------\n";
+      switch (menu_option_num)
+      {
+        // Checking connection with Hello request.
+        case 1:
+        {
+          SendMessage(client_ID_, Requests::Hello, "");
+          std::cout << ReadMessage();
+          break;
+        }
+        case 2:
+        {
+          SendMessage(client_ID_, Requests::CheckBalance, "");
+          nlohmann::json balance = ReadJsonMessage();
+          std::cout << "USD: " << balance[USD_BALANCE] << std::endl;
+          std::cout << "RUB: " << balance[RUB_BALANCE] << std::endl;
+          break;
+        }
+        case 7:
+        {
+          exit(0);
+          break;
+        }
+        default:
+        {
+          std::cout << "Unknown menu option\n" << std::endl;
+          continue;
+        }
+      }
+    }
+  }
+
+private:
+  std::string client_ID_ = "";
+  tcp::socket& ClientSocket;
+  short menu_option_num;
+
+  enum { max_length = 1024 };
+  char data_[max_length];
+};
 
 int main()
 {
@@ -108,67 +200,8 @@ int main()
     tcp::socket s(io_context);
     s.connect(*iterator);
 
-    std::string client_ID = "0";
-    short menu_option_num;
-
-    std::cout << "Welcome!\n";
-    while(true) {
-      std::cout << "-------------\n";
-      EnteringMenu();
-      std::cin >> menu_option_num;
-
-      if (menu_option_num == 1)
-      {
-        Login(client_ID, s);
-        break;
-      }
-      else if (menu_option_num == 2) {
-        client_ID = ProcessRegistration(s);
-        if (client_ID == "-1")
-        {
-          std::cout << "This user is already registered!\n";
-          continue;
-        }
-        break;
-      }
-      else
-        exit(0);
-    }
-    
-    std::string cin_buffer;
-    while (true)
-    {
-      std::cout << "-------------\n";
-      std::cout << "Menu:\n"
-                   "1) Hello Request\n"
-                   "2) Exit\n"
-                   << std::endl;
-
-      
-      std::cin >> cin_buffer;
-      menu_option_num = std::stoi(cin_buffer);
-      std::cout << "-------------\n";
-      switch (menu_option_num)
-      {
-        // Checking connection with Hello request.
-        case 1:
-        {
-          SendMessage(s, client_ID, Requests::Hello, "");
-          std::cout << ReadMessage(s);
-          break;
-        }
-        case 2:
-        {
-          exit(0);
-          break;
-        }
-        default:
-        {
-          std::cout << "Unknown menu option\n" << std::endl;
-          continue;
-        }
-      }
-    }
+    Client client(s);
+    client.Start();   
   }
   catch (std::exception& e)
   {

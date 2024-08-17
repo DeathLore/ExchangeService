@@ -15,21 +15,23 @@ public:
   std::string RegisterNewUser(const std::string& aUserName)
   {
     size_t newUserId = mUsers.size();
-    mUsers[newUserId] = aUserName;
+    mUsers[newUserId][USER_NAME] = aUserName;
+    mUsers[newUserId][RUB_BALANCE] = "0";
+    mUsers[newUserId][USD_BALANCE] = "0";
 
-    return std::to_string(newUserId);
+    return std::move(std::to_string(newUserId));
   }
 
-  std::string GetUserName(const std::string& aUserId)
+  std::string GetUserName(const std::string& aUserID)
   {
-    const auto userIt = mUsers.find(std::stoi(aUserId));
+    const auto userIt = mUsers.find(std::stoi(aUserID));
     if (userIt == mUsers.cend())
     {
       return "Error! Unknown User";
     }
     else
     {
-      return userIt->second;
+      return userIt->second[USER_NAME];
     }
   }
 
@@ -38,16 +40,27 @@ public:
   {
     for (const auto& [key, value] : mUsers)
     {
-      if (value == supposedUserName)
+      if (value[USER_NAME] == supposedUserName)
         return std::to_string(key);
     }
     
     return "-1";
   }
 
+  std::string GetBalanceUSD(const std::string& aUserID)
+  {
+    return mUsers[std::stoi(aUserID)][USD_BALANCE];
+  }
+  std::string GetBalanceRUB(const std::string& aUserID)
+  {
+    return mUsers[std::stoi(aUserID)][RUB_BALANCE];
+  }
+
+
 private:
-  // <UserId, UserName>
-  std::map<size_t, std::string> mUsers;
+  // <UserId, UserInfo>
+  // UserInfo contains: UserName, RUB_Balance, USD_Balance
+  std::map<size_t, nlohmann::json> mUsers;
 };
 
 Core& GetCore()
@@ -84,14 +97,14 @@ public:
 
       // Parsing json, that was read.
       json_message = nlohmann::json::parse(data_);
-      reqType = json_message["ReqType"];
+      reqType = json_message[REQUEST_TYPE];
 
       std::string reply = "Error! Unknown request type";
       if (reqType == Requests::Registration)
       {
-        if (GetCore().FindUserID(json_message["Message"]) == "-1")
-        // Register new user and send's it's ID back to user.
-          reply = GetCore().RegisterNewUser(json_message["Message"]);
+        if (core.FindUserID(json_message[MESSAGE]) == "-1")
+        // Register new user and send it's ID back to user.
+          reply = core.RegisterNewUser(json_message[MESSAGE]);
         else
           // If user already registered - error "-1".
           reply = "-1";
@@ -100,11 +113,18 @@ public:
       {
         // Welcoming User.
         // User's name finding via UserID in received message.
-        reply = "Hello, " + GetCore().GetUserName(json_message["UserId"]) + "!\n";
+        reply = "Hello, " + core.GetUserName(json_message[USER_ID]) + "!\n";
       }
        else if (reqType == Requests::FindUser)
       {
-        reply = GetCore().FindUserID(json_message["Message"]);
+        reply = core.FindUserID(json_message[MESSAGE]);
+      }
+      else if (reqType == Requests::CheckBalance)
+      {
+        reply = nlohmann::json{
+          {USD_BALANCE, core.GetBalanceUSD(json_message[USER_ID]).c_str()},
+          {RUB_BALANCE, core.GetBalanceRUB(json_message[USER_ID]).c_str()}
+        }.dump();
       }
 
       boost::asio::async_write(socket_,
@@ -137,6 +157,8 @@ private:
   tcp::socket socket_;
   enum { max_length = 1024 };
   char data_[max_length];
+
+  Core& core = GetCore();
 
   nlohmann::json json_message;
   nlohmann::json reqType;
