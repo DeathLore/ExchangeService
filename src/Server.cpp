@@ -89,8 +89,12 @@ public:
       std::string reply = "Error! Unknown request type";
       if (reqType == Requests::Registration)
       {
+        if (GetCore().FindUserID(json_message["Message"]) == "-1")
         // Register new user and send's it's ID back to user.
-        reply = GetCore().RegisterNewUser(json_message["Message"]);
+          reply = GetCore().RegisterNewUser(json_message["Message"]);
+        else
+          // If user already registered - error "-1".
+          reply = "-1";
       }
       else if (reqType == Requests::Hello)
       {

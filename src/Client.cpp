@@ -69,6 +69,7 @@ void Login(std::string& aClientID, tcp::socket& aSocket)
     if (std::stoi(message) == -1)
     {
       short menu_option_num;
+      std::cout << "-------------\n";
       std::cout << "User \"" << client_name << "\" not found.\n";
       EnteringMenu();
       std::cin >> menu_option_num;
@@ -78,6 +79,11 @@ void Login(std::string& aClientID, tcp::socket& aSocket)
       else if (menu_option_num == 2)
       {
         aClientID = ProcessRegistration(aSocket);
+        if (aClientID == "-1")
+        {
+          std::cout << "This user is already registered!\n";
+          continue;
+        }
         break;
       }
       else
@@ -107,6 +113,7 @@ int main()
 
     std::cout << "Welcome!\n";
     while(true) {
+      std::cout << "-------------\n";
       EnteringMenu();
       std::cin >> menu_option_num;
 
@@ -117,22 +124,30 @@ int main()
       }
       else if (menu_option_num == 2) {
         client_ID = ProcessRegistration(s);
+        if (client_ID == "-1")
+        {
+          std::cout << "This user is already registered!\n";
+          continue;
+        }
         break;
       }
       else
         exit(0);
     }
     
-
+    std::string cin_buffer;
     while (true)
     {
+      std::cout << "-------------\n";
       std::cout << "Menu:\n"
                    "1) Hello Request\n"
                    "2) Exit\n"
                    << std::endl;
 
       
-      std::cin >> menu_option_num;
+      std::cin >> cin_buffer;
+      menu_option_num = std::stoi(cin_buffer);
+      std::cout << "-------------\n";
       switch (menu_option_num)
       {
         // Checking connection with Hello request.
@@ -150,6 +165,7 @@ int main()
         default:
         {
           std::cout << "Unknown menu option\n" << std::endl;
+          continue;
         }
       }
     }
