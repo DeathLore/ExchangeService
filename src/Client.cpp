@@ -47,7 +47,7 @@ std::string ProcessRegistration(tcp::socket& aSocket)
 
 void EnteringMenu()
 {
-  std::cout << "Menu:"
+  std::cout << "Menu:\n"
                "1) Login\n"
                "2) Register\n"
                "*) Exit\n"
@@ -69,7 +69,7 @@ void Login(std::string& aClientID, tcp::socket& aSocket)
     if (std::stoi(message) == -1)
     {
       short menu_option_num;
-      std::cout << "User \"" << client_name << "\"not found.\n";
+      std::cout << "User \"" << client_name << "\" not found.\n";
       EnteringMenu();
       std::cin >> menu_option_num;
       
@@ -105,8 +105,8 @@ int main()
     std::string client_ID = "0";
     short menu_option_num;
 
+    std::cout << "Welcome!\n";
     while(true) {
-      std::cout << "Welcome!\n";
       EnteringMenu();
       std::cin >> menu_option_num;
 
@@ -119,10 +119,8 @@ int main()
         client_ID = ProcessRegistration(s);
         break;
       }
-      else if (menu_option_num == 3)
-        exit(0);
       else
-        std::cout << "Unknown menu option\n" << std::endl;
+        exit(0);
     }
     
 

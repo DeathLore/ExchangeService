@@ -56,10 +56,10 @@ Core& GetCore()
   return core;
 }
 
-class session
+class Session
 {
 public:
-  session(boost::asio::io_context& io_context)
+  Session(boost::asio::io_context& io_context)
       : socket_(io_context) { }
 
   tcp::socket& socket()
@@ -70,7 +70,7 @@ public:
   void start()
   {
     socket_.async_read_some(boost::asio::buffer(data_, max_length),
-        boost::bind(&session::handle_read, this,
+        boost::bind(&Session::handle_read, this,
         boost::asio::placeholders::error,
         boost::asio::placeholders::bytes_transferred));
   }
@@ -105,7 +105,7 @@ public:
 
       boost::asio::async_write(socket_,
           boost::asio::buffer(reply, reply.size()),
-          boost::bind(&session::handle_write, this,
+          boost::bind(&Session::handle_write, this,
           boost::asio::placeholders::error));
     }
     else
@@ -119,7 +119,7 @@ public:
     if (!error)
     {
       socket_.async_read_some(boost::asio::buffer(data_, max_length),
-      boost::bind(&session::handle_read, this,
+      boost::bind(&Session::handle_read, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
     }
@@ -138,60 +138,54 @@ private:
   nlohmann::json reqType;
 };
 
-class server final
+class Server final
 {
 public:
-  server(boost::asio::io_context& io_context)
+  Server(boost::asio::io_context& io_context)
       : io_context_(io_context),
       acceptor_(io_context, tcp::endpoint(tcp::v4(), port))
   {
     std::cout << "Server started! Listen " << port << " port" << std::endl;
   }
 
-  ~server()
+  ~Server()
   {
-    sessions_list_.clear();
     std::cout << "Server stopped!" << std::endl;
   }
 
-  server(const server& other) = delete;
-  server(server&& other) = delete;
-  server& operator=(const server& other) = delete;
-  server& operator=(server&& other) = delete;
+  Server(const Server& other) = delete;
+  Server(Server&& other) = delete;
+  Server& operator=(const Server& other) = delete;
+  Server& operator=(Server&& other) = delete;
 
   void start()
   {
-    sessions_list_.emplace_back(io_context_);
-    session_it_ = sessions_list_.end();
-    acceptor_.async_accept(session_it_->socket(),
-        boost::bind(&server::handle_accept, this,
+    Session* new_session = new Session(io_context_);
+    acceptor_.async_accept(new_session->socket(),
+        boost::bind(&Server::handle_accept, this,
+        new_session,
         boost::asio::placeholders::error));
   }
 
-  void handle_accept(const boost::system::error_code& error)
+  void handle_accept(Session* new_session, const boost::system::error_code& error)
   {
     if (!error)
     {
-      session_it_->start();
-      sessions_list_.emplace_back(io_context_);
-      session_it_ = sessions_list_.end();
-      acceptor_.async_accept(session_it_->socket(),
-           boost::bind(&server::handle_accept, this,
-           boost::asio::placeholders::error));
+      new_session->start();
+      new_session = new Session(io_context_);
+      acceptor_.async_accept(new_session->socket(),
+                boost::bind(&Server::handle_accept, this, new_session,
+                    boost::asio::placeholders::error));
     }
     else
     {
-      sessions_list_.erase(session_it_);
+      delete new_session;
     }
   }
 
 private:
   boost::asio::io_context& io_context_;
   tcp::acceptor acceptor_;
-  // List is used because there are multiple sessions 
-  // that are created and expired frequently.
-  std::list<session> sessions_list_;
-  std::list<session>::iterator session_it_;
 };
 
 int main()
@@ -201,7 +195,7 @@ int main()
     boost::asio::io_context io_context;
     Core core = GetCore();
 
-    server s(io_context);
+    Server s(io_context);
     s.start();
 
     io_context.run();
