@@ -8,6 +8,129 @@
 
 using boost::asio::ip::tcp;
 
+class Trade
+{
+  // Map was used for fast searching Prices.
+  // List as a map's value was used to store undefined amount of user's
+  // trade requests, moreover every trade would read only first or last request.
+  // Each list's node stores UserID and amount of money to exchange.
+  using UserInfo = std::list<std::pair<std::string, uint>>;
+  // <Price, UserInfo>
+  // UserInfo: <UserID, TradeValue>
+  std::map<uint, UserInfo> Buyers;
+  std::map<uint, UserInfo> Sellers;
+
+public:
+  nlohmann::json add_buyer(const std::string& UserID, const uint& Price, uint& TradeValue)
+  {
+    nlohmann::json return_info;
+
+    while (true)
+    {
+      auto found_seller = find_seller_request(Price);
+      if (found_seller != Sellers.end())
+      {
+        uint sellers_value = (*(*found_seller).second.begin()).second;
+        if (TradeValue == sellers_value)
+        {
+          return_info[(*(*found_seller).second.begin()).first] = {{SUB_BALANCE_USD, sellers_value}, {ADD_BALANCE_RUB, sellers_value * (*found_seller).first}};
+          return_info[UserID] = {{ADD_BALANCE_USD, TradeValue}, {SUB_BALANCE_RUB, TradeValue * (*found_seller).first}};
+          (*found_seller).second.pop_front();
+          break;
+        }
+        else if (TradeValue < sellers_value)
+        {
+          return_info[(*(*found_seller).second.begin()).first] = {{SUB_BALANCE_USD, TradeValue}, {ADD_BALANCE_RUB, TradeValue * (*found_seller).first}};
+          return_info[UserID] = {{ADD_BALANCE_USD, TradeValue}, {SUB_BALANCE_RUB, TradeValue * (*found_seller).first}};
+          (*(*found_seller).second.begin()).second -= TradeValue;
+          break;
+        }
+        else
+        {
+          return_info[(*(*found_seller).second.begin()).first] = {{SUB_BALANCE_USD, sellers_value}, {ADD_BALANCE_RUB, sellers_value * (*found_seller).first}};
+          return_info[UserID] = {{ADD_BALANCE_USD, sellers_value}, {SUB_BALANCE_RUB, sellers_value * (*found_seller).first}};
+          (*found_seller).second.pop_front();
+          TradeValue -= sellers_value;
+        }
+      }
+      else
+        Buyers[Price].emplace_back(UserID, TradeValue);
+    }
+
+    return return_info;
+  }
+
+  nlohmann::json add_seller(const std::string& UserID, const uint& Price, uint& TradeValue)
+  {
+    nlohmann::json return_info;
+
+    while (true)
+    {
+      auto found_buyer = find_buyer_request(Price);
+      if (found_buyer != Buyers.begin())
+      {
+        uint buyers_value = (*(*found_buyer).second.begin()).second;
+        if (TradeValue == buyers_value)
+        {
+          return_info[(*(*found_buyer).second.begin()).first] = {{ADD_BALANCE_USD, buyers_value}, {SUB_BALANCE_RUB, buyers_value * (*found_buyer).first}};
+          return_info[UserID] = {{SUB_BALANCE_USD, TradeValue}, {ADD_BALANCE_RUB, TradeValue * (*found_buyer).first}};
+          (*found_buyer).second.pop_front();
+          break;
+        }
+        else if (TradeValue < buyers_value)
+        {
+          return_info[(*(*found_buyer).second.begin()).first] = {{ADD_BALANCE_USD, TradeValue}, {SUB_BALANCE_RUB, TradeValue * (*found_buyer).first}};
+          return_info[UserID] = {{SUB_BALANCE_USD, TradeValue}, {ADD_BALANCE_RUB, TradeValue * (*found_buyer).first}};
+          (*(*found_buyer).second.begin()).second -= TradeValue;
+          break;
+        }
+        else
+        {
+          return_info[(*(*found_buyer).second.begin()).first] = {{ADD_BALANCE_USD, buyers_value}, {SUB_BALANCE_RUB, buyers_value * (*found_buyer).first}};
+          return_info[UserID] = {{SUB_BALANCE_USD, buyers_value}, {ADD_BALANCE_RUB, buyers_value * (*found_buyer).first}};
+          (*found_buyer).second.pop_front();
+          TradeValue -= buyers_value;
+        }
+      }
+      else
+        Sellers[Price].emplace_back(UserID, TradeValue);
+    }
+
+    return return_info;
+    
+  }
+
+  std::map<uint, Trade::UserInfo>::iterator find_buyer_request(const uint& MinPrice) 
+  {
+    auto map_iterator = Buyers.rbegin();
+    for (; map_iterator != Buyers.rend(); ++map_iterator)
+    {
+      if (!((*map_iterator).second.empty()) 
+          && MinPrice <= (*map_iterator).first)
+        break;
+    }
+
+    // Reversed iterator casted to common iterator points to next position
+    // that needed.
+    return --(map_iterator.base());
+  }
+
+  std::map<uint, Trade::UserInfo>::iterator find_seller_request(const uint& MinPrice)
+  {
+    auto map_iterator = Sellers.begin();
+    for (; map_iterator != Sellers.end(); ++map_iterator)
+    {
+      if (!((*map_iterator).second.empty()) 
+          && MinPrice <= (*map_iterator).first)
+        break;
+    }
+
+    return map_iterator;
+  }
+
+};
+
+
 class Core
 {
 public:
@@ -56,11 +179,23 @@ public:
     return mUsers[std::stoi(aUserID)][RUB_BALANCE];
   }
 
+  void buyUSD(const std::string& UserID, const uint& Price, uint TradeValue)
+  {
+    tradeRequests.add_buyer(UserID, Price, TradeValue);
+  }
+
+  void sellUSD(const std::string& UserID, const uint& Price, uint TradeValue)
+  {
+    tradeRequests.add_seller(UserID, Price, TradeValue);
+  }
+
 
 private:
   // <UserId, UserInfo>
   // UserInfo contains: UserName, RUB_Balance, USD_Balance
   std::map<size_t, nlohmann::json> mUsers;
+
+  Trade tradeRequests;
 };
 
 Core& GetCore()
@@ -68,6 +203,7 @@ Core& GetCore()
   static Core core;
   return core;
 }
+
 
 class Session
 {
@@ -122,9 +258,13 @@ public:
       else if (reqType == Requests::CheckBalance)
       {
         reply = nlohmann::json{
-          {USD_BALANCE, core.GetBalanceUSD(json_message[USER_ID]).c_str()},
-          {RUB_BALANCE, core.GetBalanceRUB(json_message[USER_ID]).c_str()}
+          {USD_BALANCE, core.GetBalanceUSD(json_message[USER_ID])},
+          {RUB_BALANCE, core.GetBalanceRUB(json_message[USER_ID])}
         }.dump();
+      } 
+      else if (reqType == Requests::BuyUSD)
+      {
+        core.buyUSD(json_message[USER_ID], json_message[PRICE], json_message[TRADE_VALUE]);
       }
 
       boost::asio::async_write(socket_,
