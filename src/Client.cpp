@@ -58,6 +58,24 @@ public:
     req[REQUEST_TYPE] = aRequestType;
     req[MESSAGE] = aMessage;
 
+    // std::cout << req << std::endl;
+
+    std::string request = req.dump();
+    boost::asio::write(ClientSocket, boost::asio::buffer(request, request.size()));
+  }
+
+  void SendJsonMessage(
+    const std::string& aClientID,
+    const std::string& aRequestType,
+    const nlohmann::json& aMessage)
+  {
+    nlohmann::json req;
+    req[USER_ID] = aClientID;
+    req[REQUEST_TYPE] = aRequestType;
+    req[MESSAGE] = aMessage;
+
+    // std::cout << "json: " << req << std::endl;
+
     std::string request = req.dump();
     boost::asio::write(ClientSocket, boost::asio::buffer(request, request.size()));
   }
@@ -140,6 +158,8 @@ public:
       std::cout << "Menu:\n"
                    "1) Hello Request\n"
                    "2) Balance\n"
+                   "3) Buy USD\n"
+                   "4) Sell USD\n"
                    "7) Exit\n"
                    << std::endl;
 
@@ -162,6 +182,37 @@ public:
           nlohmann::json balance = ReadJsonMessage();
           std::cout << "USD: " << balance[USD_BALANCE] << std::endl;
           std::cout << "RUB: " << balance[RUB_BALANCE] << std::endl;
+          break;
+        }
+        case 3:
+        {
+          uint price, tradeValue;
+          std::cout << "Enter how many USD you want to buy: ";
+          std::cin >> tradeValue;
+          std::cout << "Enter price of 1 USD in RUBs: ";
+          std::cin >> price;
+
+          nlohmann::json message_json = {{PRICE, price}, {TRADE_VALUE, tradeValue}};
+
+          SendJsonMessage(client_ID_, Requests::BuyUSD, message_json);
+          ReadMessage();
+          break;
+        }
+        case 4:
+        {
+          std::cout << "Enter how many USD you want to sell: ";
+          std::cin.sync();
+          std::cin >> cin_buffer;
+          std::cin.sync();
+          uint tradeValue = std::stoi(cin_buffer);
+          std::cout << "Enter price of 1 USD in RUBs: ";
+          std::cin.sync();
+          std::cin >> cin_buffer;
+          std::cin.sync();
+          uint price = std::stoi(cin_buffer);
+
+          SendJsonMessage(client_ID_, Requests::SellUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
+          ReadMessage();
           break;
         }
         case 7:
