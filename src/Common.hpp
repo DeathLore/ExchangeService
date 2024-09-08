@@ -17,8 +17,10 @@
 #define TRADE_VALUE "TradeValue"
 #define STATUS "Status"
 
+// Server's port
 static short port = 5555;
 
+// Requests that Client send to the Server.
 namespace Requests
 {
   static std::string Registration = "Reg";

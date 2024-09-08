@@ -19,6 +19,8 @@ class Client final
 {
 public:
 
+  // Starts client's session.
+  // Offers to Login, Register new user, Close app.
   Client(tcp::socket& socket) : ClientSocket(socket) 
   {
     std::cout << "Welcome!\n";
@@ -53,6 +55,7 @@ public:
     const std::string& aRequestType,
     const std::string& aMessage)
   {
+    // Request that would be send to the Server.
     nlohmann::json req;
     req[USER_ID] = aClientID;
     req[REQUEST_TYPE] = aRequestType;
@@ -64,11 +67,13 @@ public:
     boost::asio::write(ClientSocket, boost::asio::buffer(request, request.size()));
   }
 
+  // Sending json as a message to server
   void SendJsonMessage(
     const std::string& aClientID,
     const std::string& aRequestType,
     const nlohmann::json& aMessage)
   {
+    // Request that would be send to the Server.
     nlohmann::json req;
     req[USER_ID] = aClientID;
     req[REQUEST_TYPE] = aRequestType;
@@ -90,6 +95,7 @@ public:
     return line;
   }
 
+  // Returns server's json response for last request.
   nlohmann::json ReadJsonMessage()
   {
     return nlohmann::json::parse(ReadMessage());
@@ -108,10 +114,13 @@ public:
     return ReadMessage();
   }
 
+  // Logging as already existing user
   void Login(std::string& aClientID)
   {
     std::string client_name, message;
 
+    // Main login loop.
+    // Handles unsuccessful login.
     while(true)
     {
       std::cout << "Enter user name: ";
@@ -120,6 +129,8 @@ public:
       // Message contains "-1" if not found; else clientID;
       message = ReadMessage();
 
+      // Login was unsuccessful.
+      // Offering variants to handle it.
       if (std::stoi(message) == -1)
       {
         short menu_option_num;
@@ -128,8 +139,10 @@ public:
         EnteringMenu();
         std::cin >> menu_option_num;
         
+        // Trying login again.
         if (menu_option_num == 1)
           continue;
+        // Register new yser.
         else if (menu_option_num == 2)
         {
           aClientID = ProcessRegistration();
@@ -140,16 +153,20 @@ public:
           }
           break;
         }
+        // User wished to end using app.
         else
           exit(0);
       }
       
+      // Login successful;
+      // Saving Client ID.
       aClientID = message;
       break;
     }
   }
 
-
+  // Starts main client's loop that offers interaction with the Server.
+  // Has to be called once after client obj initialization.
   void Start() {
     std::string cin_buffer;
     while (true)
@@ -176,6 +193,7 @@ public:
           std::cout << ReadMessage();
           break;
         }
+        // Asking user's balance.
         case 2:
         {
           SendMessage(client_ID_, Requests::CheckBalance, "");
@@ -184,6 +202,7 @@ public:
           std::cout << "RUB: " << balance[RUB_BALANCE] << std::endl;
           break;
         }
+        // Buying USD by selling RUB.
         case 3:
         {
           uint price, tradeValue;
@@ -198,6 +217,7 @@ public:
           ReadMessage();
           break;
         }
+        // Selling USD by buying RUB.
         case 4:
         {
           std::cout << "Enter how many USD you want to sell: ";
@@ -215,6 +235,7 @@ public:
           ReadMessage();
           break;
         }
+        // Ends session (and the whole program).
         case 7:
         {
           exit(0);
@@ -230,11 +251,15 @@ public:
   }
 
 private:
+  // Client ID in string format.
+  // Currently used only as decimal number.
   std::string client_ID_ = "";
+  // Socket connected to the Server
   tcp::socket& ClientSocket;
   short menu_option_num;
 
   enum { max_length = 1024 };
+  // Data transmitted by Server
   char data_[max_length];
 };
 

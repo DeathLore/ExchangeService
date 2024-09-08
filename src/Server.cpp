@@ -8,11 +8,30 @@
 
 using boost::asio::ip::tcp;
 
-class Trade
+class Notification final
+{
+public:
+
+void addNotification(const std::string UserID) {
+
+}
+
+std::string sendNotification(const std::string UserID) {
+
+}
+
+private:
+
+// <UserID, Notifications>
+std::map<std::string, std::string> mNotifications; 
+
+};
+
+class Trade final
 {
   // Map was used for fast searching Prices.
   // List as a map's value was used to store undefined amount of user's
-  // trade requests, moreover every trade would read only first or last request.
+  // trade requests, moreover every trade requires to read only the first or last request.
   // Each list's node stores UserID and amount of money to exchange.
   using UserInfo = std::list<std::pair<std::string, uint>>;
   // <Price, UserInfo>
@@ -142,7 +161,7 @@ public:
 };
 
 
-class Core
+class Core final
 {
 public:
   // Returns new user's ID as a string.
@@ -250,6 +269,7 @@ private:
   std::map<size_t, nlohmann::json> mUsers;
 
   Trade tradeRequests;
+  Notification notifications;
 };
 
 Core& GetCore()
@@ -259,7 +279,7 @@ Core& GetCore()
 }
 
 
-class Session
+class Session final
 {
 public:
   Session(boost::asio::io_context& io_context)
@@ -290,6 +310,7 @@ public:
       reqType = json_message[REQUEST_TYPE];
 
       std::string reply = "Error! Unknown request type";
+      // TO DO: Replace if sequence to switch.
       if (reqType == Requests::Registration)
       {
         if (core.FindUserID(json_message[MESSAGE]) == "-1")
@@ -414,22 +435,19 @@ private:
   tcp::acceptor acceptor_;
 };
 
-int main()
+int main() try
 {
-  try
-  {
-    boost::asio::io_context io_context;
-    Core core = GetCore();
+  boost::asio::io_context io_context;
+  Server s(io_context);
+  s.start();
 
-    Server s(io_context);
-    s.start();
-
-    io_context.run();
-  }
-  catch (std::exception& e)
-  {
-    std::cerr << "Exception: " << e.what() << "\n";
-  }
-
+  io_context.run();
   return 0;
 }
+catch (std::exception& e)
+{
+  std::cerr << "Exception: " << e.what() << "\n";
+  return 1;
+}
+
+  
