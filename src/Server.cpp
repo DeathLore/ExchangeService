@@ -435,6 +435,8 @@ private:
   tcp::acceptor acceptor_;
 };
 
+
+#ifndef TESTING
 int main() try
 {
   boost::asio::io_context io_context;
@@ -449,5 +451,4 @@ catch (std::exception& e)
   std::cerr << "Exception: " << e.what() << "\n";
   return 1;
 }
-
-  
+#endif

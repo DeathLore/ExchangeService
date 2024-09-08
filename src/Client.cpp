@@ -263,6 +263,8 @@ private:
   char data_[max_length];
 };
 
+
+#ifndef TESTING
 int main()
 {
   try
@@ -286,3 +288,4 @@ int main()
 
   return 0;
 }
+#endif
