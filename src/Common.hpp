@@ -29,6 +29,7 @@ namespace Requests
   static std::string CheckBalance = "ChkBlnc";
   static std::string BuyUSD = "BuyUSD";
   static std::string SellUSD = "SellUSD";
+  static std::string Notification = "Notif";
 }
 
 #endif //CLIENT_SERV_EXCHANGE_COMMON_HPP

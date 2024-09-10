@@ -12,12 +12,19 @@ class Notification final
 {
 public:
 
-void addNotification(const std::string UserID) {
-
+void addNotification(const std::string UserID, std::string notification)
+{
+  mNotifications[UserID].append(notification + '\n');
 }
 
-std::string sendNotification(const std::string UserID) {
+std::string sendNotification(const std::string UserID)
+{
+  return mNotifications[UserID];
+}
 
+void clearUserNotifications(const std::string UserID)
+{
+  mNotifications[UserID].clear();
 }
 
 private:
@@ -213,23 +220,33 @@ public:
   {
     nlohmann::json tradeResult;
 
+    // Exchanging all TradeValue until possible
     while (true) 
     {
       tradeResult = tradeRequests.add_buyer(UserID, Price, TradeValue);
 
+      // If buyer request was added and there already were sellers to trade
       if (!tradeResult.contains("JustAdded")) 
       {
+        // Updating User's balance
         int iUserID = std::stoi(UserID);
         mUsers[iUserID][USD_BALANCE] = mUsers[iUserID].value(USD_BALANCE, 0) + tradeResult[UserID].value(ADD_BALANCE_USD, 0);
         mUsers[iUserID][RUB_BALANCE] = mUsers[iUserID].value(RUB_BALANCE, 0) - tradeResult[UserID].value(SUB_BALANCE_RUB, 0);
 
+        // Updating Seller's balance
         std::string seller_ID = tradeResult[UserID]["Seller_ID"];
         uint iSeller_ID = std::stoi(seller_ID);
         mUsers[iSeller_ID][USD_BALANCE] = mUsers[iSeller_ID].value(USD_BALANCE, 0) - tradeResult[seller_ID].value(SUB_BALANCE_USD, 0);
         mUsers[iSeller_ID][RUB_BALANCE] = mUsers[iSeller_ID].value(RUB_BALANCE, 0) + tradeResult[seller_ID].value(ADD_BALANCE_RUB, 0);
-        // NOTIFY HERE
+        
+        // Sending notification about successful trade
+        std::string UserNotification = "Converted " + std::to_string(tradeResult[UserID].value(SUB_BALANCE_RUB, 0)) + "RUB to " + std::to_string(tradeResult[UserID].value(ADD_BALANCE_USD, 0)) + "USD.",
+                    SellerNotification = "Converted " + std::to_string(tradeResult[iSeller_ID].value(SUB_BALANCE_USD, 0)) + "USD to " + std::to_string(tradeResult[iSeller_ID].value(ADD_BALANCE_RUB, 0)) + "RUB.";
+        notifications.addNotification(UserID, UserNotification);
+        notifications.addNotification(seller_ID, SellerNotification);
       }
 
+      // No more suitable sellers to trade with.
       if (!tradeResult.contains("Continue"))
         break;
     }
@@ -239,27 +256,44 @@ public:
   {
     nlohmann::json tradeResult;
 
+    // Exchanging all TradeValue until possible
     while (true) 
     {
       tradeResult = tradeRequests.add_seller(UserID, Price, TradeValue);
       
+      // If buyer request was added and there already were sellers to trade
       if (!tradeResult.contains("JustAdded")) 
       {
+        // Updating User's balance
         int iUserID = std::stoi(UserID);
-
         mUsers[iUserID][USD_BALANCE] = mUsers[iUserID].value(USD_BALANCE, 0) - tradeResult[UserID].value(SUB_BALANCE_USD, 0);
         mUsers[iUserID][RUB_BALANCE] = mUsers[iUserID].value(RUB_BALANCE, 0) + tradeResult[UserID].value(ADD_BALANCE_RUB, 0);
 
+        // Updating Buyer's balance
         std::string buyer_ID = tradeResult[UserID]["Buyer_ID"];
         int iBuyer_ID = std::stoi(buyer_ID);
         mUsers[iBuyer_ID][USD_BALANCE] = mUsers[iBuyer_ID].value(USD_BALANCE, 0) + tradeResult[buyer_ID].value(ADD_BALANCE_USD, 0);
         mUsers[iBuyer_ID][RUB_BALANCE] = mUsers[iBuyer_ID].value(RUB_BALANCE, 0) - tradeResult[buyer_ID].value(SUB_BALANCE_RUB, 0);
-        // NOTIFY HERE
+        
+        // Sending notification about successful trade
+        std::string UserNotification = "Converted " + std::to_string(tradeResult[UserID].value(SUB_BALANCE_USD, 0)) + "USD to " + std::to_string(tradeResult[UserID].value(ADD_BALANCE_RUB, 0)) + "RUB.",
+                    BuyerNotification = "Converted " + std::to_string(tradeResult[buyer_ID].value(SUB_BALANCE_RUB, 0)) + "RUB to " + std::to_string(tradeResult[buyer_ID].value(ADD_BALANCE_USD, 0)) + "USD.";
+        notifications.addNotification(UserID, UserNotification);
+        notifications.addNotification(buyer_ID, BuyerNotification);
       }
 
+      // No more suitable buyers to trade with.
       if (!tradeResult.contains("Continue"))
         break;
     }
+  }
+
+  std::string sendNotification(std::string UserID) {
+    return notifications.sendNotification(UserID);
+  }
+
+  void clearNotifications(std::string UserID) {
+    notifications.clearUserNotifications(UserID);
   }
 
 
@@ -346,6 +380,11 @@ public:
       {
         core.sellUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
         reply = "-1";
+      }
+      else if (reqType == Requests::Notification)
+      {
+        reply = core.sendNotification(json_message.value(USER_ID, "-1"));
+        core.clearNotifications(json_message.value(USER_ID, "-1"));
       }
 
       boost::asio::async_write(socket_,
