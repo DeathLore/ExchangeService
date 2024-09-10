@@ -177,6 +177,7 @@ public:
                    "2) Balance\n"
                    "3) Buy USD\n"
                    "4) Sell USD\n"
+                   "5) Notifications\n"
                    "7) Exit\n"
                    << std::endl;
 
@@ -234,6 +235,11 @@ public:
           SendJsonMessage(client_ID_, Requests::SellUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
           ReadMessage();
           break;
+        }
+        case 5:
+        {
+          SendMessage(client_ID_, Requests::Notification, "-1");
+          ReadMessage();
         }
         // Ends session (and the whole program).
         case 7:
