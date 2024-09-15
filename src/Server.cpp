@@ -12,17 +12,20 @@ class Notification final
 {
 public:
 
-void addNotification(const std::string UserID, std::string notification)
+void addNotification(const std::string& UserID, const std::string& notification)
 {
   mNotifications[UserID].append(notification + '\n');
 }
 
-std::string sendNotification(const std::string UserID)
+std::string sendNotification(const std::string& UserID)
 {
-  return mNotifications[UserID];
+  if (!mNotifications[UserID].empty())
+    return mNotifications[UserID];
+  else
+    return "No notifications.\n";
 }
 
-void clearUserNotifications(const std::string UserID)
+void clearUserNotifications(const std::string& UserID)
 {
   mNotifications[UserID].clear();
 }
@@ -240,8 +243,8 @@ public:
         mUsers[iSeller_ID][RUB_BALANCE] = mUsers[iSeller_ID].value(RUB_BALANCE, 0) + tradeResult[seller_ID].value(ADD_BALANCE_RUB, 0);
         
         // Sending notification about successful trade
-        std::string UserNotification = "Converted " + std::to_string(tradeResult[UserID].value(SUB_BALANCE_RUB, 0)) + "RUB to " + std::to_string(tradeResult[UserID].value(ADD_BALANCE_USD, 0)) + "USD.",
-                    SellerNotification = "Converted " + std::to_string(tradeResult[iSeller_ID].value(SUB_BALANCE_USD, 0)) + "USD to " + std::to_string(tradeResult[iSeller_ID].value(ADD_BALANCE_RUB, 0)) + "RUB.";
+        const std::string UserNotification = "Converted " + std::to_string(tradeResult[UserID].value(SUB_BALANCE_RUB, 0)) + " RUB to " + std::to_string(tradeResult[UserID].value(ADD_BALANCE_USD, 0)) + " USD.",
+                          SellerNotification = "Converted " + std::to_string(tradeResult[seller_ID].value(SUB_BALANCE_USD, 0)) + " USD to " + std::to_string(tradeResult[seller_ID].value(ADD_BALANCE_RUB, 0)) + " RUB.";
         notifications.addNotification(UserID, UserNotification);
         notifications.addNotification(seller_ID, SellerNotification);
       }
@@ -276,8 +279,8 @@ public:
         mUsers[iBuyer_ID][RUB_BALANCE] = mUsers[iBuyer_ID].value(RUB_BALANCE, 0) - tradeResult[buyer_ID].value(SUB_BALANCE_RUB, 0);
         
         // Sending notification about successful trade
-        std::string UserNotification = "Converted " + std::to_string(tradeResult[UserID].value(SUB_BALANCE_USD, 0)) + "USD to " + std::to_string(tradeResult[UserID].value(ADD_BALANCE_RUB, 0)) + "RUB.",
-                    BuyerNotification = "Converted " + std::to_string(tradeResult[buyer_ID].value(SUB_BALANCE_RUB, 0)) + "RUB to " + std::to_string(tradeResult[buyer_ID].value(ADD_BALANCE_USD, 0)) + "USD.";
+        const std::string UserNotification = "Converted " + std::to_string(tradeResult[UserID].value(SUB_BALANCE_USD, 0)) + " USD to " + std::to_string(tradeResult[UserID].value(ADD_BALANCE_RUB, 0)) + " RUB.",
+                          BuyerNotification = "Converted " + std::to_string(tradeResult[buyer_ID].value(SUB_BALANCE_RUB, 0)) + " RUB to " + std::to_string(tradeResult[buyer_ID].value(ADD_BALANCE_USD, 0)) + " USD.";
         notifications.addNotification(UserID, UserNotification);
         notifications.addNotification(buyer_ID, BuyerNotification);
       }
@@ -288,11 +291,11 @@ public:
     }
   }
 
-  std::string sendNotification(std::string UserID) {
+  std::string sendNotification(const std::string& UserID) {
     return notifications.sendNotification(UserID);
   }
 
-  void clearNotifications(std::string UserID) {
+  void clearNotifications(const std::string& UserID) {
     notifications.clearUserNotifications(UserID);
   }
 
