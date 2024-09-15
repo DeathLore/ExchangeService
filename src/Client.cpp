@@ -206,16 +206,19 @@ public:
         // Buying USD by selling RUB.
         case 3:
         {
-          uint price, tradeValue;
           std::cout << "Enter how many USD you want to buy: ";
-          std::cin >> tradeValue;
+          std::cin.sync();
+          std::cin >> cin_buffer;
+          std::cin.sync();
+          uint tradeValue = std::stoi(cin_buffer);
           std::cout << "Enter price of 1 USD in RUBs: ";
-          std::cin >> price;
+          std::cin.sync();
+          std::cin >> cin_buffer;
+          std::cin.sync();
+          uint price = std::stoi(cin_buffer);
 
-          nlohmann::json message_json = {{PRICE, price}, {TRADE_VALUE, tradeValue}};
-
-          SendJsonMessage(client_ID_, Requests::BuyUSD, message_json);
-          ReadMessage();
+          SendJsonMessage(client_ID_, Requests::BuyUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
+          ReadMessage(); // Results "-1"
           break;
         }
         // Selling USD by buying RUB.
@@ -233,13 +236,14 @@ public:
           uint price = std::stoi(cin_buffer);
 
           SendJsonMessage(client_ID_, Requests::SellUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
-          ReadMessage();
+          ReadMessage(); // Results "-1"
           break;
         }
         case 5:
         {
           SendMessage(client_ID_, Requests::Notification, "-1");
-          ReadMessage();
+          std::cout << ReadMessage();
+          break;
         }
         // Ends session (and the whole program).
         case 7:
