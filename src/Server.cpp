@@ -374,14 +374,14 @@ public:
       reqType = json_message[REQUEST_TYPE];
 
       std::string reply = "Error! Unknown request type";
-      // TO DO: Replace if sequence to switch.
+      
       if (reqType == Requests::Registration)
       {
         if (core.FindUserID(json_message[MESSAGE]) == "-1")
         // Register new user and send it's ID back to user.
           reply = core.RegisterNewUser(json_message[MESSAGE]);
         else
-          // If user already registered - error "-1".
+        // If user already registered - error "-1".
           reply = "-1";
       }
       else if (reqType == Requests::Hello)
@@ -471,7 +471,7 @@ private:
   Core& core = GetCore();
 
   nlohmann::json json_message;
-  nlohmann::json reqType;
+  Requests reqType;
 };
 
 class Server final

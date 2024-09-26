@@ -52,7 +52,7 @@ public:
   // Sending message to the server.
   void SendMessage(
     const std::string& aClientID,
-    const std::string& aRequestType,
+    const Requests aRequestType,
     const std::string& aMessage)
   {
     // Request that would be send to the Server.
@@ -70,7 +70,7 @@ public:
   // Sending json as a message to server
   void SendJsonMessage(
     const std::string& aClientID,
-    const std::string& aRequestType,
+    const Requests aRequestType,
     const nlohmann::json& aMessage)
   {
     // Request that would be send to the Server.
