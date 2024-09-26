@@ -8,6 +8,33 @@
 
 using boost::asio::ip::tcp;
 
+// Checks if received user_id is correct.
+// Current system architecture supposes that user_id is
+// sequence of numbers (int).
+bool validate_user_id(const std::string& UserID)
+try
+{
+  int user_id = std::stoi(UserID);
+
+  if (user_id >= 0)
+    return true;
+  
+  return false;
+}
+catch (...)
+{
+  return false;
+}
+
+bool validate_price(const uint& Price)
+{
+  return (Price > 0);
+}
+bool validate_trade_value(const uint& TradeValue)
+{
+  return (TradeValue > 0);
+}
+
 class Notification final
 {
 public:
@@ -361,7 +388,11 @@ public:
       {
         // Welcoming User.
         // User's name finding via UserID in received message.
-        reply = "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n";
+
+        if (validate_user_id(json_message[USER_ID]))
+          reply = "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n";
+        else
+          reply = "Bad UserID";
       }
        else if (reqType == Requests::FindUser)
       {
@@ -369,25 +400,41 @@ public:
       }
       else if (reqType == Requests::CheckBalance)
       {
-        reply = nlohmann::json{
-          {USD_BALANCE, core.GetBalanceUSD(json_message.value(USER_ID, "-1"))},
-          {RUB_BALANCE, core.GetBalanceRUB(json_message.value(USER_ID, "-1"))}
-        }.dump();
+        if (validate_user_id(json_message[USER_ID]))
+          reply = nlohmann::json{
+            {USD_BALANCE, core.GetBalanceUSD(json_message.value(USER_ID, "-1"))},
+            {RUB_BALANCE, core.GetBalanceRUB(json_message.value(USER_ID, "-1"))}
+          }.dump();
+        else 
+          ;
+          //! Reply else case.
       } 
       else if (reqType == Requests::BuyUSD)
       {
-        core.buyUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
+        if (validate_user_id(json_message[USER_ID]) &&
+            validate_price(json_message[MESSAGE][PRICE]) &&
+            validate_trade_value(json_message[MESSAGE][TRADE_VALUE]))
+          core.buyUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
         reply = "-1";
+        //! Reply cases; success and failure.
       }
       else if (reqType == Requests::SellUSD)
       {
-        core.sellUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
+        if (validate_user_id(json_message[USER_ID]) &&
+            validate_price(json_message[MESSAGE][PRICE]) &&
+            validate_trade_value(json_message[MESSAGE][TRADE_VALUE]))
+          core.sellUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
         reply = "-1";
+        //! Reply cases; success and failure.
       }
       else if (reqType == Requests::Notification)
       {
-        reply = core.sendNotification(json_message.value(USER_ID, "-1"));
-        core.clearNotifications(json_message.value(USER_ID, "-1"));
+        if (validate_user_id(json_message[USER_ID]))
+        {
+          reply = core.sendNotification(json_message.value(USER_ID, "-1"));
+          core.clearNotifications(json_message.value(USER_ID, "-1"));
+        }
+        //! Reply else case
       }
 
       boost::asio::async_write(socket_,

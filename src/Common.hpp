@@ -32,4 +32,10 @@ namespace Requests
   static std::string Notification = "Notif";
 }
 
+namespace Response
+{
+  static std::string Success = "Success";
+  static std::string Error = "Error";
+}
+
 #endif //CLIENT_SERV_EXCHANGE_COMMON_HPP
