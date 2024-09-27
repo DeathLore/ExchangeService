@@ -212,12 +212,13 @@ public:
     return std::move(std::to_string(newUserId));
   }
 
+  // Returns "-1" if unknown User.
   std::string GetUserName(const std::string& aUserID)
   {
     const auto userIt = mUsers.find(std::stoi(aUserID));
     if (userIt == mUsers.cend())
     {
-      return "Error! Unknown User";
+      return "-1";
     }
     else
     {
@@ -373,49 +374,71 @@ public:
       json_message = nlohmann::json::parse(data_);
       reqType = json_message[REQUEST_TYPE];
 
-      std::string reply = "Error! Unknown request type";
-      
+      reply = nlohmann::json{{"Status", Response::Error},
+                             {"Message", {"Text", "Error! Unknown request type"}}};
+      // nlohmann::json{{"Status", Response::Error},
+      //                           {"Message", }};
       if (reqType == Requests::Registration)
       {
         if (core.FindUserID(json_message[MESSAGE]) == "-1")
         // Register new user and send it's ID back to user.
-          reply = core.RegisterNewUser(json_message[MESSAGE]);
+          reply = nlohmann::json{{"Status", Response::Success},
+                                 {"Message", {"Data", core.RegisterNewUser(json_message[MESSAGE])}}};
         else
         // If user already registered - error "-1".
-          reply = "-1";
+          reply = nlohmann::json{{"Status", Response::Error},
+                                 {"Message", {"Text", "This user is already registered!"}}};
       }
       else if (reqType == Requests::Hello)
       {
         // Welcoming User.
         // User's name finding via UserID in received message.
 
-        if (validate_user_id(json_message[USER_ID]))
-          reply = "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n";
+        if (validate_user_id(json_message[USER_ID]) && core.GetUserName(json_message.value(USER_ID, "-1")) != "-1")
+          reply = nlohmann::json{{"Status", Response::Success},
+                                 {"Message", {"Text", "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n"}}};
         else
-          reply = "Bad UserID";
+          reply = nlohmann::json{{"Status", Response::Error},
+                                 {"Message", {"Text", "Bad UserID"}}};
       }
        else if (reqType == Requests::FindUser)
       {
-        reply = core.FindUserID(json_message[MESSAGE]);
+        reply = nlohmann::json{{"Status", Response::Success},
+                               {"Message", {"Data", core.FindUserID(json_message[MESSAGE])}}};
+        if (reply["Message"]["Data"] == "-1")
+        {
+          reply["Status"] = Response::Error;
+          reply["Message"]["Text"] = "UserID not found!";
+        }
       }
       else if (reqType == Requests::CheckBalance)
       {
         if (validate_user_id(json_message[USER_ID]))
-          reply = nlohmann::json{
-            {USD_BALANCE, core.GetBalanceUSD(json_message.value(USER_ID, "-1"))},
-            {RUB_BALANCE, core.GetBalanceRUB(json_message.value(USER_ID, "-1"))}
+          reply = nlohmann::json{{"Status", Response::Success},
+              {"Message", 
+                {"Data",
+                  {
+                    {USD_BALANCE, core.GetBalanceUSD(json_message.value(USER_ID, "-1"))},
+                    {RUB_BALANCE, core.GetBalanceRUB(json_message.value(USER_ID, "-1"))}
+                  }
+                }
+              }
           }.dump();
         else 
-          ;
-          //! Reply else case.
-      } 
+          reply = nlohmann::json{{"Status", Response::Error},
+                                 {"Message", {"Text", "Bad UserID."}}};
+      }
       else if (reqType == Requests::BuyUSD)
       {
         if (validate_user_id(json_message[USER_ID]) &&
             validate_price(json_message[MESSAGE][PRICE]) &&
             validate_trade_value(json_message[MESSAGE][TRADE_VALUE]))
           core.buyUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
-        reply = "-1";
+        reply = { {"Status", Response::Success},
+                  {"Message", 
+                    {"Text", "No info."}
+                  }
+                };
         //! Reply cases; success and failure.
       }
       else if (reqType == Requests::SellUSD)
@@ -424,23 +447,34 @@ public:
             validate_price(json_message[MESSAGE][PRICE]) &&
             validate_trade_value(json_message[MESSAGE][TRADE_VALUE]))
           core.sellUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
-        reply = "-1";
+        reply = { {"Status", Response::Success},
+                  {"Message", 
+                    {"Text", "No info."}
+                  }
+                };
         //! Reply cases; success and failure.
       }
       else if (reqType == Requests::Notification)
       {
-        if (validate_user_id(json_message[USER_ID]))
+        if (validate_user_id(json_message[USER_ID]) && core.GetUserName(json_message[USER_ID]) != "-1")
         {
-          reply = core.sendNotification(json_message.value(USER_ID, "-1"));
+          reply = { {"Status", Response::Success},
+                    {"Message", 
+                      {"Text", core.sendNotification(json_message.value(USER_ID, "-1"))}
+                    }
+                  };
           core.clearNotifications(json_message.value(USER_ID, "-1"));
         }
-        //! Reply else case
+        else
+          reply = nlohmann::json{{"Status", Response::Error},
+                                 {"Message", {"Text", "Bad UserID."}}};
       }
 
       boost::asio::async_write(socket_,
-          boost::asio::buffer(reply, reply.size()),
+          boost::asio::buffer(reply.dump(), reply.size()),
           boost::bind(&Session::handle_write, this,
-          boost::asio::placeholders::error));
+                      boost::asio::placeholders::error)
+          );
     }
     else
     {
@@ -470,7 +504,8 @@ private:
 
   Core& core = GetCore();
 
-  nlohmann::json json_message;
+  nlohmann::json json_message,
+                 reply;
   Requests reqType;
 };
 

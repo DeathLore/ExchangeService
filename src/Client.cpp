@@ -53,7 +53,7 @@ public:
   void SendMessage(
     const std::string& aClientID,
     const Requests aRequestType,
-    const std::string& aMessage)
+    const std::string& aMessage) [[deprecated]]
   {
     // Request that would be send to the Server.
     nlohmann::json req;
