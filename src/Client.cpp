@@ -95,10 +95,10 @@ public:
     return line;
   }
 
-  // Returns server's json response for last request.
-  nlohmann::json ReadJsonMessage()
+  // Moves server's json response to "message".
+  void ReadJsonMessage()
   {
-    return nlohmann::json::parse(ReadMessage());
+    message = nlohmann::json::parse(ReadMessage());
   }
 
   // Register new User.
@@ -111,13 +111,15 @@ public:
 
     // For registration ID is not necessary that's why filled it as "0".
     SendMessage("0", Requests::Registration, name);
-    return ReadMessage();
+    ReadJsonMessage();
+
+    return (message[S_STATUS] == Response::Error) ? "-1" : message[MESSAGE][S_DATA];
   }
 
   // Logging as already existing user
   void Login(std::string& aClientID)
   {
-    std::string client_name, message;
+    std::string client_name;
 
     // Main login loop.
     // Handles unsuccessful login.
@@ -127,11 +129,11 @@ public:
       std::cin >> client_name;
       SendMessage("0", Requests::FindUser, client_name);
       // Message contains "-1" if not found; else clientID;
-      message = ReadMessage();
+      ReadJsonMessage();
 
       // Login was unsuccessful.
       // Offering variants to handle it.
-      if (std::stoi(message) == -1)
+      if (message[S_STATUS] == Response::Error)
       {
         short menu_option_num;
         std::cout << "-------------\n";
@@ -191,16 +193,24 @@ public:
         case 1:
         {
           SendMessage(client_ID_, Requests::Hello, "");
-          std::cout << ReadMessage();
+          ReadJsonMessage();
+          std::cout << message[MESSAGE][S_TEXT];
           break;
         }
         // Asking user's balance.
         case 2:
         {
           SendMessage(client_ID_, Requests::CheckBalance, "");
-          nlohmann::json balance = ReadJsonMessage();
-          std::cout << "USD: " << balance[USD_BALANCE] << std::endl;
-          std::cout << "RUB: " << balance[RUB_BALANCE] << std::endl;
+          ReadJsonMessage();
+          
+          if (Response::Success == message[S_STATUS])
+          {
+            std::cout << "USD: " << message[MESSAGE][S_DATA][USD_BALANCE] << std::endl;
+            std::cout << "RUB: " << message[MESSAGE][S_DATA][RUB_BALANCE] << std::endl;
+          }
+          else
+            std::cout << message[MESSAGE][S_TEXT] << std::endl;
+
           break;
         }
         // Buying USD by selling RUB.
@@ -218,7 +228,7 @@ public:
           uint price = std::stoi(cin_buffer);
 
           SendJsonMessage(client_ID_, Requests::BuyUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
-          ReadMessage(); // Results "-1"
+          ReadMessage();
           break;
         }
         // Selling USD by buying RUB.
@@ -236,13 +246,20 @@ public:
           uint price = std::stoi(cin_buffer);
 
           SendJsonMessage(client_ID_, Requests::SellUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
-          ReadMessage(); // Results "-1"
+          ReadMessage();
           break;
         }
         case 5:
         {
           SendMessage(client_ID_, Requests::Notification, "-1");
-          std::cout << ReadMessage();
+          ReadJsonMessage();
+
+          if (Response::Success == message[S_STATUS])
+          {
+            std::cout << message[MESSAGE][S_TEXT];
+          }
+          else
+            std::cout << message[MESSAGE][S_TEXT] << std::endl;
           break;
         }
         // Ends session (and the whole program).
@@ -271,6 +288,8 @@ private:
   enum { max_length = 1024 };
   // Data transmitted by Server
   char data_[max_length];
+  // 
+  nlohmann::json message;
 };
 
 

@@ -374,20 +374,20 @@ public:
       json_message = nlohmann::json::parse(data_);
       reqType = json_message[REQUEST_TYPE];
 
-      reply = nlohmann::json{{"Status", Response::Error},
-                             {"Message", {"Text", "Error! Unknown request type"}}};
+      reply = nlohmann::json{{S_STATUS, Response::Error},
+                             {MESSAGE, {S_TEXT, "Error! Unknown request type"}}};
       // nlohmann::json{{"Status", Response::Error},
       //                           {"Message", }};
       if (reqType == Requests::Registration)
       {
         if (core.FindUserID(json_message[MESSAGE]) == "-1")
         // Register new user and send it's ID back to user.
-          reply = nlohmann::json{{"Status", Response::Success},
-                                 {"Message", {"Data", core.RegisterNewUser(json_message[MESSAGE])}}};
+          reply = nlohmann::json{{S_STATUS, Response::Success},
+                                 {MESSAGE, {S_DATA, core.RegisterNewUser(json_message[MESSAGE])}}};
         else
         // If user already registered - error "-1".
-          reply = nlohmann::json{{"Status", Response::Error},
-                                 {"Message", {"Text", "This user is already registered!"}}};
+          reply = nlohmann::json{{S_STATUS, Response::Error},
+                                 {MESSAGE, {S_TEXT, "This user is already registered!"}}};
       }
       else if (reqType == Requests::Hello)
       {
@@ -395,28 +395,28 @@ public:
         // User's name finding via UserID in received message.
 
         if (validate_user_id(json_message[USER_ID]) && core.GetUserName(json_message.value(USER_ID, "-1")) != "-1")
-          reply = nlohmann::json{{"Status", Response::Success},
-                                 {"Message", {"Text", "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n"}}};
+          reply = nlohmann::json{{S_STATUS, Response::Success},
+                                 {MESSAGE, {S_TEXT, "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n"}}};
         else
-          reply = nlohmann::json{{"Status", Response::Error},
-                                 {"Message", {"Text", "Bad UserID"}}};
+          reply = nlohmann::json{{S_STATUS, Response::Error},
+                                 {MESSAGE, {S_TEXT, "Bad UserID"}}};
       }
-       else if (reqType == Requests::FindUser)
+      else if (reqType == Requests::FindUser)
       {
-        reply = nlohmann::json{{"Status", Response::Success},
-                               {"Message", {"Data", core.FindUserID(json_message[MESSAGE])}}};
-        if (reply["Message"]["Data"] == "-1")
+        reply = nlohmann::json{{S_STATUS, Response::Success},
+                               {MESSAGE, {S_DATA, core.FindUserID(json_message[MESSAGE])}}};
+        if (reply[MESSAGE][S_DATA] == "-1")
         {
-          reply["Status"] = Response::Error;
-          reply["Message"]["Text"] = "UserID not found!";
+          reply[S_STATUS] = Response::Error;
+          reply[MESSAGE][S_TEXT] = "UserID not found!";
         }
       }
       else if (reqType == Requests::CheckBalance)
       {
         if (validate_user_id(json_message[USER_ID]))
-          reply = nlohmann::json{{"Status", Response::Success},
-              {"Message", 
-                {"Data",
+          reply = nlohmann::json{{S_STATUS, Response::Success},
+              {MESSAGE, 
+                {S_DATA,
                   {
                     {USD_BALANCE, core.GetBalanceUSD(json_message.value(USER_ID, "-1"))},
                     {RUB_BALANCE, core.GetBalanceRUB(json_message.value(USER_ID, "-1"))}
@@ -425,8 +425,8 @@ public:
               }
           }.dump();
         else 
-          reply = nlohmann::json{{"Status", Response::Error},
-                                 {"Message", {"Text", "Bad UserID."}}};
+          reply = nlohmann::json{{S_STATUS, Response::Error},
+                                 {MESSAGE, {S_TEXT, "Bad UserID."}}};
       }
       else if (reqType == Requests::BuyUSD)
       {
@@ -434,9 +434,9 @@ public:
             validate_price(json_message[MESSAGE][PRICE]) &&
             validate_trade_value(json_message[MESSAGE][TRADE_VALUE]))
           core.buyUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
-        reply = { {"Status", Response::Success},
-                  {"Message", 
-                    {"Text", "No info."}
+        reply = { {S_STATUS, Response::Success},
+                  {MESSAGE, 
+                    {S_TEXT, "No info."}
                   }
                 };
         //! Reply cases; success and failure.
@@ -447,9 +447,9 @@ public:
             validate_price(json_message[MESSAGE][PRICE]) &&
             validate_trade_value(json_message[MESSAGE][TRADE_VALUE]))
           core.sellUSD(json_message[USER_ID], json_message[MESSAGE].value(PRICE, -1), json_message[MESSAGE].value(TRADE_VALUE, -1));
-        reply = { {"Status", Response::Success},
-                  {"Message", 
-                    {"Text", "No info."}
+        reply = { {S_STATUS, Response::Success},
+                  {MESSAGE, 
+                    {S_TEXT, "No info."}
                   }
                 };
         //! Reply cases; success and failure.
@@ -458,16 +458,16 @@ public:
       {
         if (validate_user_id(json_message[USER_ID]) && core.GetUserName(json_message[USER_ID]) != "-1")
         {
-          reply = { {"Status", Response::Success},
-                    {"Message", 
-                      {"Text", core.sendNotification(json_message.value(USER_ID, "-1"))}
+          reply = { {S_STATUS, Response::Success},
+                    {MESSAGE, 
+                      {S_TEXT, core.sendNotification(json_message.value(USER_ID, "-1"))}
                     }
                   };
           core.clearNotifications(json_message.value(USER_ID, "-1"));
         }
         else
-          reply = nlohmann::json{{"Status", Response::Error},
-                                 {"Message", {"Text", "Bad UserID."}}};
+          reply = nlohmann::json{{S_STATUS, Response::Error},
+                                 {MESSAGE, {S_TEXT, "Bad UserID."}}};
       }
 
       boost::asio::async_write(socket_,

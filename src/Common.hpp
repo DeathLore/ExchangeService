@@ -38,7 +38,9 @@ Test
 #define USER_ID "UserID"
 #define PRICE "Price"
 #define TRADE_VALUE "TradeValue"
-#define STATUS "Status"
+#define S_STATUS "Status"
+#define S_TEXT "Text"
+#define S_DATA "Data"
 
 // Server's port
 static short port = 5555;
