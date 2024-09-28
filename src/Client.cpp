@@ -86,19 +86,26 @@ public:
   }
 
   // Returns server's response for last request.
-  std::string ReadMessage()
+  void ReadMessage()
   {
+    std::cout << "RM1\n";
     boost::asio::streambuf b;
     boost::asio::read_until(ClientSocket, b, "\0");
     std::istream is(&b);
-    std::string line(std::istreambuf_iterator<char>(is), {});
-    return line;
+    is >> data_;
+    // std::string line(std::istreambuf_iterator<char>(is), {});
+    // ClientSocket.read_some(boost::asio::buffer(data_, data_.length()), "\\");
+    std::cout << data_ << " RM2\n";
+    // return line;
   }
 
   // Moves server's json response to "message".
   void ReadJsonMessage()
   {
-    message = nlohmann::json::parse(ReadMessage());
+    std::cout << "RJ1\n";
+    ReadMessage();
+    message = nlohmann::json::parse(data_);
+    std::cout << "RJ2\n";
   }
 
   // Register new User.
@@ -129,7 +136,9 @@ public:
       std::cin >> client_name;
       SendMessage("0", Requests::FindUser, client_name);
       // Message contains "-1" if not found; else clientID;
+      std::cout << "1\n";
       ReadJsonMessage();
+      std::cout << "2\n";
 
       // Login was unsuccessful.
       // Offering variants to handle it.
@@ -285,9 +294,9 @@ private:
   tcp::socket& ClientSocket;
   short menu_option_num;
 
-  enum { max_length = 1024 };
+  // enum { max_length = 1024 };
   // Data transmitted by Server
-  char data_[max_length];
+  std::string data_;
   // 
   nlohmann::json message;
 };
