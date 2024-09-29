@@ -398,7 +398,7 @@ public:
 
         if (validate_user_id(json_message[USER_ID]) && core.GetUserName(json_message.value(USER_ID, "-1")) != "-1")
           reply = {{S_STATUS, Response::Success},
-                   {MESSAGE, {{S_TEXT, "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!\n"}} } };
+                   {MESSAGE, {{S_TEXT, "Hello, " + core.GetUserName(json_message.value(USER_ID, "-1")) + "!"}} } };
         else
           reply = {{S_STATUS, Response::Error},
                    {MESSAGE, {{S_TEXT, "Bad UserID"}} } };
@@ -424,10 +424,10 @@ public:
           reply = nlohmann::json{{S_STATUS, Response::Success},
               {MESSAGE, 
                 {{S_DATA,
-                  {{
+                  {
                     {USD_BALANCE, core.GetBalanceUSD(json_message.value(USER_ID, "-1"))},
                     {RUB_BALANCE, core.GetBalanceRUB(json_message.value(USER_ID, "-1"))}
-                  }}
+                  }
                 }}
               }
           };

@@ -92,7 +92,7 @@ public:
     boost::asio::streambuf b;
     boost::asio::read_until(ClientSocket, b, "\0");
     std::istream is(&b);
-    is >> data_;
+    std::getline(is, data_);
     // std::string line(std::istreambuf_iterator<char>(is), {});
     // ClientSocket.read_some(boost::asio::buffer(data_, data_.length()), "\\");
     std::cout << data_ << " RM2\n";
@@ -203,7 +203,17 @@ public:
         {
           SendMessage(client_ID_, Requests::Hello, "");
           ReadJsonMessage();
-          std::cout << message[MESSAGE][S_TEXT];
+          std::string printable = message[MESSAGE][S_TEXT].dump();
+          // bool delete_slash = true;
+          // std::for_each(printable, [&delete_slash](char &c) 
+          // {
+          //   if (c == '\\' && delete_slash)
+          //   {
+          //     delete_slash = !delete_slash;
+          //     c = '';
+          //   }
+          // });
+          std::cout << printable << std::endl;
           break;
         }
         // Asking user's balance.
@@ -237,7 +247,7 @@ public:
           uint price = std::stoi(cin_buffer);
 
           SendJsonMessage(client_ID_, Requests::BuyUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
-          ReadMessage();
+          ReadJsonMessage();
           break;
         }
         // Selling USD by buying RUB.
@@ -255,7 +265,7 @@ public:
           uint price = std::stoi(cin_buffer);
 
           SendJsonMessage(client_ID_, Requests::SellUSD, nlohmann::json{{PRICE, price}, {TRADE_VALUE, tradeValue}});
-          ReadMessage();
+          ReadJsonMessage();
           break;
         }
         case 5:
